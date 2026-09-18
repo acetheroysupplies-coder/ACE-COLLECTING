@@ -42,92 +42,6 @@
 (function(){
 'use strict';
 
-// ==================== GOOGLE SIGN-IN ====================
-
-const FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyAxGJIZ7qFvsdpwJRoUkwdMi15dpKDnXCk',
-  authDomain: 'collecting-3ca22.firebaseapp.com',
-  databaseURL: 'https://collecting-3ca22-default-rtdb.firebaseio.com',
-  projectId: 'collecting-3ca22',
-  storageBucket: 'collecting-3ca22.firebasestorage.app',
-  messagingSenderId: '1062026374436',
-  appId: '1:1062026374436:web:cac0412ae965378d4d57b1'
-};
-
-if (!firebase.apps.length) {
-  firebase.initializeApp(FIREBASE_CONFIG);
-}
-
-const auth = firebase.auth();
-const database = firebase.database();
-
-const googleProvider = new firebase.auth.GoogleAuthProvider();
-
-async function signInWithGoogle() {
-  try {
-    const result = await auth.signInWithPopup(googleProvider);
-    const user = result.user;
-
-    console.log("Google sign-in successful:", user.displayName);
-
-    showToast("Signed in as " + (user.displayName || user.email));
-
-    // Save the player's account information
-    await database.ref("players/" + user.uid + "/profile").update({
-      name: user.displayName || "Collector",
-      email: user.email || "",
-      photo: user.photoURL || "",
-      lastLogin: Date.now()
-    });
-
-  } catch (error) {
-    console.error("Google sign-in error:", error);
-    showToast("Google sign-in failed");
-  }
-}
-
-async function signOutGoogle() {
-  try {
-    await auth.signOut();
-    showToast("Signed out");
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-auth.onAuthStateChanged(function(user) {
-  if (user) {
-    console.log("Signed in:", user.displayName);
-    console.log("User ID:", user.uid);
-
-    updateGoogleButton(user);
-  } else {
-    console.log("Not signed in");
-    updateGoogleButton(null);
-  }
-});
-
-function updateGoogleButton(user) {
-  let button = document.getElementById("googleAccountButton");
-
-  if (!button) return;
-
-  if (user) {
-    button.textContent = "✓ " + (user.displayName || "Google Account");
-    button.classList.add("primary");
-  } else {
-    button.textContent = "SIGN IN WITH GOOGLE";
-    button.classList.remove("primary");
-  }
-}
-
-function googleAccountClick() {
-  if (auth.currentUser) {
-    signOutGoogle();
-  } else {
-    signInWithGoogle();
-  }
-}
 // Real, freely-licensed (Pexels) photos for subjects that have one — everything else uses generated art.
 var PHOTO_URLS={
 'Wolf':'https://images.pexels.com/photos/682375/pexels-photo-682375.jpeg?auto=compress&cs=tinysrgb&w=640',
@@ -305,6 +219,46 @@ function sellAllCommons(){var ids=ownedIds(),sold=0,gained=0;ids.forEach(functio
 var DB=null,USERCAP=null,MY_ID=null,marketUnsub=null,mineUnsub=null;
 var ONLINE_DB=null,ONLINE_READY=false,ONLINE_PROFILE_REF=null,ONLINE_PRESENCE_REF=null;
 var FIREBASE_CONFIG={apiKey:'AIzaSyAxGJIZ7qFvsdpwJRoUkwdMi15dpKDnXCk',authDomain:'collecting-3ca22.firebaseapp.com',databaseURL:'https://collecting-3ca22-default-rtdb.firebaseio.com',projectId:'collecting-3ca22',storageBucket:'collecting-3ca22.firebasestorage.app',messagingSenderId:'1062026374436',appId:'1:1062026374436:web:cac0412ae965378d4d57b1'};
+// ==================== GOOGLE SIGN-IN ====================
+if (window.firebase) {
+  if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+  var auth = firebase.auth();
+  var googleProvider = new firebase.auth.GoogleAuthProvider();
+
+  function updateGoogleButton(user) {
+    var button = document.getElementById('googleAccountButton');
+    if (!button) return;
+    if (user) {
+      button.textContent = '✓ ' + (user.displayName || 'Google Account');
+      button.classList.add('primary');
+    } else {
+      button.textContent = 'SIGN IN WITH GOOGLE';
+      button.classList.remove('primary');
+    }
+  }
+
+  window.googleAccountClick = function() {
+    if (auth.currentUser) {
+      auth.signOut().then(function(){ if (typeof toast==='function') toast('Signed out'); });
+      return;
+    }
+    auth.signInWithPopup(googleProvider).then(function(result) {
+      var user = result.user;
+      return firebase.database().ref('players/' + user.uid + '/profile').update({
+        name: user.displayName || 'Collector',
+        email: user.email || '',
+        photo: user.photoURL || '',
+        lastLogin: Date.now()
+      }).then(function(){ if (typeof toast==='function') toast('Signed in as ' + (user.displayName || user.email || 'Collector')); });
+    }).catch(function(error) {
+      console.error('Google sign-in error:', error);
+      if (typeof toast==='function') toast('Google sign-in failed: ' + (error.code || 'error'));
+    });
+  };
+
+  auth.onAuthStateChanged(updateGoogleButton);
+}
+
 function marketArt(d){return artUrl({id:d.cardId,category:d.cardCategory,rarity:d.cardRarity,art:d.cardEmoji})}
 function listingRowHTML(doc,names,mine){var d=doc.data();var priceStr='$'+Number(d.price).toLocaleString();var sellerName=mine?'You':((names&&names[d.sellerId]&&names[d.sellerId].name)||'A player');var status=d.status==='sold'?' · SOLD':'';var btn=mine?(d.status==='open'?'<button class="btn danger" data-cancel-id="'+doc.id+'">CANCEL</button>':'<span class="who">'+(d.paid?'PAID':'AWAITING')+'</span>'):'<button class="btn primary" data-buy-id="'+doc.id+'">BUY</button>';return '<div class="listing"><img loading="lazy" src="'+marketArt(d)+'" alt=""><div><strong>'+d.cardTitle+'</strong><div class="who">'+d.cardRarity+' · '+sellerName+status+'</div></div><strong>'+priceStr+'</strong>'+btn+'</div>'}
 function renderOpenListings(snap){var docs=snap.docs.filter(function(x){return x.exists&&x.data().sellerId!==MY_ID});var ids=docs.map(function(x){return x.data().sellerId});(USERCAP?USERCAP.profiles(ids):Promise.resolve({})).then(function(names){el('marketOpen').innerHTML=docs.length?docs.map(function(x){return listingRowHTML(x,names,false)}).join(''):'<p class="muted">No listings yet from other players. Be the first!</p>';el('marketOpen').querySelectorAll('[data-buy-id]').forEach(function(b){b.onclick=function(){buyListing(b.getAttribute('data-buy-id'))}})})}
