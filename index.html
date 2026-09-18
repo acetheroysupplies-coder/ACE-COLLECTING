@@ -14,7 +14,7 @@
 </head>
 <body>
 <div class="app">
-  <header class="top"><div class="logo" id="logo">♠ ACE THEORY<small>CARD COLLECTOR</small></div><button class="btn" id="save">SAVE</button></header>
+  <header class="top">   <div class="logo" id="logo">     ♠ ACE THEORY     <small>CARD COLLECTOR</small>   </div>    <div class="actions">     <button class="btn" id="googleAccountButton" onclick="googleAccountClick()">       SIGN IN WITH GOOGLE     </button>      <button class="btn" id="save">SAVE</button>   </div> </header>
   <div class="stats"><div class="stat"><b id="money">$250</b><span>Money</span></div><div class="stat"><b id="packsOwned">2</b><span>Packs</span></div><div class="stat"><b id="count">0</b><span>Unique Cards</span></div><div class="stat"><b id="value">$0</b><span>Collection Value</span></div></div>
   <nav class="nav"><button class="btn primary" data-page="home">Home</button><button class="btn" data-page="packs">Packs</button><button class="btn" data-page="collection">Collection</button><button class="btn" data-page="sell">Sell</button><button class="btn" data-page="market">Trade</button><button class="btn" data-page="auction">Auctions</button><button class="btn" data-page="leader">Leaderboard</button><button class="btn" data-page="secrets">Secret Codes</button><button class="btn" id="adminNav">Admin</button></nav>
 
@@ -40,8 +40,92 @@
 <script>
 (function(){
 'use strict';
-// ==== SETUP FOR GITHUB: replace with your own Google OAuth Client ID (see README) ====
-var GOOGLE_CLIENT_ID='YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+// ==================== GOOGLE SIGN-IN ====================
+
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyAxGJIZ7qFvsdpwJRoUkwdMi15dpKDnXCk',
+  authDomain: 'collecting-3ca22.firebaseapp.com',
+  databaseURL: 'https://collecting-3ca22-default-rtdb.firebaseio.com',
+  projectId: 'collecting-3ca22',
+  storageBucket: 'collecting-3ca22.firebasestorage.app',
+  messagingSenderId: '1062026374436',
+  appId: '1:1062026374436:web:cac0412ae965378d4d57b1'
+};
+
+if (!firebase.apps.length) {
+  firebase.initializeApp(FIREBASE_CONFIG);
+}
+
+const auth = firebase.auth();
+const database = firebase.database();
+
+const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+async function signInWithGoogle() {
+  try {
+    const result = await auth.signInWithPopup(googleProvider);
+    const user = result.user;
+
+    console.log("Google sign-in successful:", user.displayName);
+
+    showToast("Signed in as " + (user.displayName || user.email));
+
+    // Save the player's account information
+    await database.ref("players/" + user.uid + "/profile").update({
+      name: user.displayName || "Collector",
+      email: user.email || "",
+      photo: user.photoURL || "",
+      lastLogin: Date.now()
+    });
+
+  } catch (error) {
+    console.error("Google sign-in error:", error);
+    showToast("Google sign-in failed");
+  }
+}
+
+async function signOutGoogle() {
+  try {
+    await auth.signOut();
+    showToast("Signed out");
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+auth.onAuthStateChanged(function(user) {
+  if (user) {
+    console.log("Signed in:", user.displayName);
+    console.log("User ID:", user.uid);
+
+    updateGoogleButton(user);
+  } else {
+    console.log("Not signed in");
+    updateGoogleButton(null);
+  }
+});
+
+function updateGoogleButton(user) {
+  let button = document.getElementById("googleAccountButton");
+
+  if (!button) return;
+
+  if (user) {
+    button.textContent = "✓ " + (user.displayName || "Google Account");
+    button.classList.add("primary");
+  } else {
+    button.textContent = "SIGN IN WITH GOOGLE";
+    button.classList.remove("primary");
+  }
+}
+
+function googleAccountClick() {
+  if (auth.currentUser) {
+    signOutGoogle();
+  } else {
+    signInWithGoogle();
+  }
+}
 // Real, freely-licensed (Pexels) photos for subjects that have one — everything else uses generated art.
 var PHOTO_URLS={
 'Wolf':'https://images.pexels.com/photos/682375/pexels-photo-682375.jpeg?auto=compress&cs=tinysrgb&w=640',
